@@ -1,4 +1,4 @@
-//AUTH/SCAN.JS
+//routes/SCAN.JS
 const express = require('express');
 const router = express.Router();
 const Scan = require('../models/Scan');

@@ -1,31 +1,40 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const mongoose_1 = __importDefault(require("mongoose"));
-const cors_1 = __importDefault(require("cors"));
-const dotenv_1 = __importDefault(require("dotenv"));
-dotenv_1.default.config();
-const auth_1 = __importDefault(require("./routes/auth"));
-const sessions_1 = __importDefault(require("./routes/sessions"));
-const app = (0, express_1.default)();
-const PORT = process.env.PORT || 5000;
-// Middleware
-app.use((0, cors_1.default)());
-app.use(express_1.default.json());
-// Test Route
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import dotenv from 'dotenv';
+dotenv.config();
+
+import authRoutes from './routes/auth';
+import scanRoutes from './routes/scan';
+import operationsRoutes from './routes/operations';
+import sessionRoutes from './routes/sessions';
+
+const app = express();
+const PORT = process.env.PORT ?? 5000;
+
+// **1. Safely grab your Mongo URI**
+const mongoUri = process.env.MONGO_URI;
+if (!mongoUri) {
+  console.error('❌ MONGO_URI is not set in the environment.');
+  process.exit(1); // stop the process immediately
+}
+
+app.use(cors());
+app.use(express.json());
+
+// health check
 app.get('/', (_, res) => res.send('Technician API is running ✅'));
-// Routes
-app.use('/api/auth', auth_1.default);
-app.use('/api/sessions', sessions_1.default);
-// MongoDB Connection
-mongoose_1.default.connect(process.env.MONGO_URI)
-    .then(() => {
+
+app.use('/api/auth', authRoutes);
+app.use('/api/scan', scanRoutes);
+app.use('/api/operations', operationsRoutes);
+app.use('/api/sessions', sessionRoutes);
+
+// **2. Connect without the non-null operator**
+mongoose
+  .connect(mongoUri)
+  .then(() => {
     console.log('✅ MongoDB connected');
     app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-})
-    .catch(err => {
-    console.error('❌ MongoDB connection error:', err);
-});
+  })
+  .catch(err => console.error('❌ MongoDB connection error:', err));

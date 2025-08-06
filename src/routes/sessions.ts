@@ -49,7 +49,7 @@ app.get('/', (_, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 0;
 
 // Connect to MongoDB and start server
 mongoose
