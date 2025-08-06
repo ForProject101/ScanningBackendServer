@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -11,52 +11,37 @@ import operationsRoutes from './routes/operations';
 import sessionRoutes from './routes/sessions';
 
 const app = express();
-
-// Load environment variables safely
-const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI;
-
-if (!MONGO_URI) {
-  console.error('❌ MONGO_URI is not defined in environment variables.');
-  process.exit(1);
-}
-
-// Global middleware
 app.use(cors());
 app.use(express.json());
 
-// Health check route
-app.get('/', (_, res) => {
-  res.status(200).json({ status: '✅ API is live', timestamp: new Date().toISOString() });
-});
-
-// Register routes
+// Routes
+app.get('/', (_: Request, res: Response) => res.send('✅ Technician API is up'));
 app.use('/api/auth', authRoutes);
 app.use('/api/scan', scanRoutes);
 app.use('/api/operations', operationsRoutes);
 app.use('/api/sessions', sessionRoutes);
 
-// MongoDB connection
-mongoose
-  .connect(MONGO_URI, { dbName: 'tech-db' }) // optional: customize DB name
-  .then(() => {
-    console.log('✅ MongoDB connection successful');
-    app.listen(PORT, () => {
-      console.log(`🚀 Server is running on http://localhost:${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error('❌ MongoDB connection error:', err.message);
-    process.exit(1); // Fail hard if DB is unreachable
-  });
+// MongoDB Connection Cache
+let isConnected = false;
 
-// Handle uncaught exceptions and rejections
-process.on('uncaughtException', (err) => {
-  console.error('🔥 Uncaught Exception:', err);
-  process.exit(1);
-});
+async function connectToDB(): Promise<void> {
+  if (isConnected) return;
 
-process.on('unhandledRejection', (reason) => {
-  console.error('🔥 Unhandled Rejection:', reason);
-  process.exit(1);
-});
+  const MONGO_URI = process.env.MONGO_URI;
+  if (!MONGO_URI) throw new Error('❌ MONGO_URI is not defined');
+
+  await mongoose.connect(MONGO_URI, { dbName: 'tech-db' });
+  isConnected = true;
+  console.log('✅ MongoDB connected (Vercel)');
+}
+
+// Main handler (Vercel Serverless-compatible)
+export default async function handler(req: Request, res: Response) {
+  try {
+    await connectToDB();
+    return app(req, res); // Forward request to Express
+  } catch (err: any) {
+    console.error('❌ Handler error:', err);
+    res.status(500).json({ error: 'Internal Server Error', message: err.message });
+  }
+}
